@@ -38,20 +38,20 @@ func (n *nodeReadNode) Lookup(out *fuse.Attr, name string, context *fuse.Context
 func TestNodeRead(t *testing.T) {
 	dir, err := ioutil.TempDir("", "nodefs")
 	if err != nil {
-		t.Fatalf("TempDir: %v", err)
+		t.Fatalf("TempDir: %s", err)
 	}
 
 	root := newNodeReadNode([]byte("root"))
 	s, _, err := MountRoot(dir, root, nil)
 	if err != nil {
-		t.Fatalf("MountRoot: %v", err)
+		t.Fatalf("MountRoot: %s", err)
 	}
 	s.SetDebug(true)
 	go s.Serve()
 	defer s.Unmount()
 	content, err := ioutil.ReadFile(dir + "/file")
 	if err != nil {
-		t.Fatalf("MountRoot: %v", err)
+		t.Fatalf("ReadFile: %s", err)
 	}
 	want := "file"
 	if string(content) != want {
