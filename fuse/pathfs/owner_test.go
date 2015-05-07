@@ -40,6 +40,7 @@ func setupOwnerTest(t *testing.T, opts *nodefs.Options) (workdir string, cleanup
 		t.Fatalf("MountNodeFileSystem failed: %v", err)
 	}
 	go state.Serve()
+	state.WaitMount()
 	return wd, func() {
 		state.Unmount()
 		os.RemoveAll(wd)

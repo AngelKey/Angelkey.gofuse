@@ -47,6 +47,7 @@ func defaultReadTest(t *testing.T) (root string, cleanup func()) {
 	}
 	state.SetDebug(VerboseTest())
 	go state.Serve()
+	state.WaitMount()
 
 	return dir, func() {
 		state.Unmount()

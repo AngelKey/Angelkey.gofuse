@@ -175,6 +175,7 @@ func TestDefaultNodeMount(t *testing.T) {
 		t.Fatalf("MountRoot: %v", err)
 	}
 	go s.Serve()
+	s.WaitMount()
 	defer s.Unmount()
 
 	if err := conn.Mount(root.Inode(), "sub", nodefs.NewDefaultNode(), nil); !err.Ok() {

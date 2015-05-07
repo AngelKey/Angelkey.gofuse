@@ -93,6 +93,7 @@ func NewNotifyTest(t *testing.T) *NotifyTest {
 	}
 	me.state.SetDebug(VerboseTest())
 	go me.state.Serve()
+	me.state.WaitMount()
 
 	return me
 }

@@ -911,6 +911,7 @@ func TestOriginalIsSymlink(t *testing.T) {
 	defer state.Unmount()
 
 	go state.Serve()
+	state.WaitMount()
 
 	if _, err := os.Lstat(mnt); err != nil {
 		t.Fatalf("Lstat failed: %v", err)

@@ -39,6 +39,7 @@ func setupMemNodeTest(t *testing.T) (wd string, root Node, clean func()) {
 
 	// Unthreaded, but in background.
 	go state.Serve()
+	state.WaitMount()
 	return mnt, root, func() {
 		state.Unmount()
 		os.RemoveAll(tmp)

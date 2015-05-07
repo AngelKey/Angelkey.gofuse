@@ -119,6 +119,7 @@ func xattrTestCase(t *testing.T, nm string) (mountPoint string, cleanup func()) 
 	state.SetDebug(VerboseTest())
 
 	go state.Serve()
+	state.WaitMount()
 	return mountPoint, func() {
 		state.Unmount()
 		os.RemoveAll(mountPoint)

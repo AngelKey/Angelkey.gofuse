@@ -49,6 +49,7 @@ func TestDeleteNotify(t *testing.T) {
 	}
 	state.SetDebug(VerboseTest())
 	go state.Serve()
+	state.WaitMount()
 	defer state.Unmount()
 
 	_, code := root.Mkdir("testdir", 0755, nil)

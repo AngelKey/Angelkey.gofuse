@@ -145,6 +145,7 @@ func setupFAttrTest(t *testing.T, fs pathfs.FileSystem) (dir string, clean func(
 	state.SetDebug(VerboseTest())
 
 	go state.Serve()
+	state.WaitMount()
 
 	// Trigger INIT.
 	os.Lstat(dir)
