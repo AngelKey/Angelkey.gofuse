@@ -40,45 +40,10 @@ package fuse
 #define nil ((void*)0)
 
 static int
-mountfuse(char *mtpt, char **err)
+mountfuse(int fd, char *mtpt, char **err)
 {
-	int i, pid, fd, r;
+	int pid;
 	char buf[200];
-	struct vfsconf vfs;
-	char *f;
-
-	if(getvfsbyname("osxfusefs", &vfs) < 0){
-		if(access(f="/Library/Filesystems/osxfusefs.fs/Support/load_osxfusefs", 0) < 0){
-		         *err = strdup("cannot find load_fusefs");
-		   	return -1;
-		}
-		if((r=system(f)) < 0){
-			snprintf(buf, sizeof buf, "%s: %s", f, strerror(errno));
-			*err = strdup(buf);
-			return -1;
-		}
-		if(r != 0){
-			snprintf(buf, sizeof buf, "load_fusefs failed: exit %d", r);
-			*err = strdup(buf);
-			return -1;
-		}
-		if(getvfsbyname("osxfusefs", &vfs) < 0){
-			snprintf(buf, sizeof buf, "getvfsbyname osxfusefs: %s", strerror(errno));
-			*err = strdup(buf);
-			return -1;
-		}
-	}
-
-	// Look for available FUSE device.
-	for(i=0;; i++){
-		snprintf(buf, sizeof buf, "/dev/osxfuse%d", i);
-		if(access(buf, 0) < 0){
-			*err = strdup("no available fuse devices");
-			return -1;
-		}
-		if((fd = open(buf, O_RDWR)) >= 0)
-			break;
-	}
 
 	pid = fork();
 	if(pid < 0)
@@ -148,30 +113,42 @@ func mountGo(dir string, options string) (*os.File, error) {
 	for i := 0; ; i++ {
 		devPath = fmt.Sprintf("/dev/osxfuse%d", i)
 		if _, err := os.Stat(devPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("no available fuse devices")
+			return nil, fmt.Errorf("no available fuse devices %d", i)
 		}
 
+		var fd int
 		var err error
-		if file, err = os.Open(devPath); err == nil {
+		fd, err = syscall.Open(devPath, syscall.O_RDWR, 0)
+		if err == nil {
+			file = os.NewFile(uintptr(fd), devPath)
 			break
 		}
 	}
 
-	cmd := exec.Cmd{
-		Path:       mountOsxfusefsPath,
-		Args:       []string{"mount_osxfusefs", "-o", "debug", "-o", "iosize=4096", "3", dir},
-		Env:        []string{"MOUNT_FUSEFS_CALL_BY_LIB=", "MOUNT_FUSEFS_DAEMON_PATH=" + mountOsxfusefsPath},
-		Stdout:     os.Stdout,
-		Stderr:     os.Stderr,
-		ExtraFiles: []*os.File{file},
-	}
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("%s: %s", mountOsxfusefsPath, err)
-	}
+	errp := (**C.char)(C.malloc(16))
+	*errp = nil
+	defer C.free(unsafe.Pointer(errp))
+	cdir := C.CString(dir)
+	defer C.free(unsafe.Pointer(cdir))
+	C.mountfuse(C.int(file.Fd()), cdir, errp)
+
+	/*
+		cmd := exec.Cmd{
+			Path:       mountOsxfusefsPath,
+			Args:       []string{"mount_osxfusefs", "-o", "debug", "-o", "iosize=4096", "3", dir},
+			Env:        []string{"MOUNT_FUSEFS_CALL_BY_LIB=", "MOUNT_FUSEFS_DAEMON_PATH=" + mountOsxfusefsPath},
+			Stdout:     os.Stdout,
+			Stderr:     os.Stderr,
+			ExtraFiles: []*os.File{file},
+		}
+		if err := cmd.Run(); err != nil {
+			return nil, fmt.Errorf("%s: %s", mountOsxfusefsPath, err)
+		}*/
 
 	return file, nil
 }
 
+/*
 func mount(dir string, options string) (int, error) {
 	errp := (**C.char)(C.malloc(16))
 	*errp = nil
@@ -183,7 +160,7 @@ func mount(dir string, options string) (int, error) {
 		return -1, mountError(C.GoString(*errp))
 	}
 	return int(fd), nil
-}
+}*/
 
 type mountError string
 
