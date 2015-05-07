@@ -35,6 +35,16 @@ func (n *nodeReadNode) Lookup(out *fuse.Attr, name string, context *fuse.Context
 	return ch, fuse.OK
 }
 
+func (n *nodeReadNode) GetAttr(out *fuse.Attr, file File, context *fuse.Context) (code fuse.Status) {
+	if n.Inode().IsDir() {
+		out.Mode = fuse.S_IFDIR | 0755
+	} else {
+		out.Mode = fuse.S_IFREG | 0644
+		out.Size = uint64(len(n.data))
+	}
+	return fuse.OK
+}
+
 func TestNodeRead(t *testing.T) {
 	dir, err := ioutil.TempDir("", "nodefs")
 	if err != nil {
