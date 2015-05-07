@@ -35,7 +35,7 @@ const (
 	mountOsxfusefsPath = "/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs"
 )
 
-func mountGo(dir string, options string) (*os.File, error) {
+func mountGo(dir string, options string, started chan struct{}) (*os.File, error) {
 	var vfc C.struct_vfsconf
 	if err := getvfsbyname(vfsName, &vfc); err != nil {
 		if _, err := os.Stat(loadOsxfusefsPath); os.IsNotExist(err) {
@@ -79,6 +79,11 @@ func mountGo(dir string, options string) (*os.File, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("%s: %s", mountOsxfusefsPath, err)
 	}
+
+	go func() {
+		_ = cmd.Wait()
+		close(started)
+	}()
 
 	return file, nil
 }

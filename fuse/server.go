@@ -173,7 +173,7 @@ func NewServer(fs RawFileSystem, mountPoint string, opts *MountOptions) (*Server
 		}
 		mountPoint = filepath.Clean(filepath.Join(cwd, mountPoint))
 	}
-	file, err := mountGo(mountPoint, strings.Join(optStrs, ","))
+	file, err := mountGo(mountPoint, strings.Join(optStrs, ","), ms.started)
 	if err != nil {
 		return nil, err
 	}
@@ -393,9 +393,6 @@ func (ms *Server) write(req *request) Status {
 	}
 
 	s := ms.systemWrite(req, header)
-	if req.inHeader.Opcode == _OP_INIT {
-		close(ms.started)
-	}
 	return s
 }
 
