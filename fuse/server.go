@@ -341,8 +341,8 @@ exit:
 
 func (ms *Server) handleRequest(req *request) {
 	req.parse()
-	// TODO: This should be the first op after an init.
-	if req.inHeader.Opcode == _OP_STATFS {
+	// TODO: Figure out whether this is OS X-specific behavior.
+	if req.inHeader.Opcode == _OP_ACCESS {
 		ms.startedMu.Lock()
 		defer ms.startedMu.Unlock()
 		if ms.started != nil {
