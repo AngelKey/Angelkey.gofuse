@@ -38,7 +38,8 @@ type Server struct {
 
 	opts *MountOptions
 
-	started chan struct{}
+	startedMu sync.Mutex
+	started   chan struct{}
 
 	// Pool for request structs.
 	reqPool sync.Pool
@@ -340,6 +341,16 @@ exit:
 
 func (ms *Server) handleRequest(req *request) {
 	req.parse()
+	// TODO: This should be the first op after an init.
+	if req.inHeader.Opcode == _OP_STATFS {
+		ms.startedMu.Lock()
+		defer ms.startedMu.Unlock()
+		if ms.started != nil {
+			close(ms.started)
+			ms.started = nil
+		}
+	}
+
 	if req.handler == nil {
 		req.status = ENOSYS
 	}
@@ -393,9 +404,6 @@ func (ms *Server) write(req *request) Status {
 	}
 
 	s := ms.systemWrite(req, header)
-	if req.inHeader.Opcode == _OP_INIT {
-		close(ms.started)
-	}
 	return s
 }
 

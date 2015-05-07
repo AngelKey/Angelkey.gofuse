@@ -48,6 +48,7 @@ func TestNodeRead(t *testing.T) {
 	}
 	s.SetDebug(true)
 	go s.Serve()
+	s.WaitMount()
 	defer s.Unmount()
 	content, err := ioutil.ReadFile(dir + "/file")
 	if err != nil {
