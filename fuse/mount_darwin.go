@@ -120,48 +120,55 @@ func getvfsbyname(name string, vfc *C.struct_vfsconf) error {
 }
 
 const (
-	vfsName           = "osxfusefs"
-	loadOsxfusefsPath = "/Library/Filesystems/osxfusefs.fs/Support/load_osxfusefs"
+	vfsName            = "osxfusefs"
+	loadOsxfusefsPath  = "/Library/Filesystems/osxfusefs.fs/Support/load_osxfusefs"
+	mountOsxfusefsPath = "/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs"
 )
 
-func mountGo(dir string, options string) (int, error) {
+func mountGo(dir string, options string) (*os.File, error) {
 	var vfc C.struct_vfsconf
 	if err := getvfsbyname(vfsName, &vfc); err != nil {
 		if _, err := os.Stat(loadOsxfusefsPath); os.IsNotExist(err) {
-			return -1, fmt.Errorf("cannot find load_osfusefs")
+			return nil, fmt.Errorf("cannot find load_osfusefs")
 		}
 
 		cmd := exec.Command(loadOsxfusefsPath)
 		if err := cmd.Run(); err != nil {
-			return -1, fmt.Errorf("%s: %s", loadOsxfusefsPath, err)
+			return nil, fmt.Errorf("%s: %s", loadOsxfusefsPath, err)
 		}
 
 		if err := getvfsbyname(vfsName, &vfc); err != nil {
-			return -1, fmt.Errorf("getvfsbyname(%s): %s", vfsName, err)
+			return nil, fmt.Errorf("getvfsbyname(%s): %s", vfsName, err)
 		}
 	}
 
 	// Look for available FUSE device.
-	fd := -1
+	var file *os.File
+	var devPath string
 	for i := 0; ; i++ {
-		devPath := fmt.Sprintf("/dev/osxfuse%d", i)
+		devPath = fmt.Sprintf("/dev/osxfuse%d", i)
 		if _, err := os.Stat(devPath); os.IsNotExist(err) {
-			return -1, fmt.Errorf("no available fuse devices")
+			return nil, fmt.Errorf("no available fuse devices")
 		}
 
 		var err error
-		if fd, err = syscall.Open(devPath, syscall.O_RDWR, 0); err == nil {
+		if file, err = os.Open(devPath); err == nil {
 			break
 		}
 	}
 
-	// TODO: Port the rest.
-
-	if err := syscall.Close(fd); err != nil {
-		return -1, err
+	cmd := exec.Cmd{
+		Path: mountOsxfusefsPath,
+		Args: []string{"-o", "iosize=4096", "3", dir},
+		Env:  []string{"MOUNT_FUSEFS_CALL_BY_LIB=", "MOUNT_FUSEFS_DAEMON_PATH=/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs"},
+		// Takes ownership of fd.
+		ExtraFiles: []*os.File{file},
+	}
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("%s: %s", mountOsxfusefsPath, err)
 	}
 
-	return -1, fmt.Errorf("Not implemented")
+	return file, nil
 }
 
 func mount(dir string, options string) (int, error) {
