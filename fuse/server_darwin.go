@@ -7,7 +7,7 @@ import (
 func (ms *Server) systemWrite(req *request, header []byte) Status {
 	if req.flatDataSize() == 0 {
 		err := handleEINTR(func() error {
-			_, err := syscall.Write(ms.mountFd, header)
+			_, err := syscall.Write(int(ms.mountFile.Fd()), header)
 			return err
 		})
 		return ToStatus(err)
@@ -20,7 +20,7 @@ func (ms *Server) systemWrite(req *request, header []byte) Status {
 		header = req.serializeHeader(len(req.flatData))
 	}
 
-	_, err := writev(int(ms.mountFd), [][]byte{header, req.flatData})
+	_, err := writev(int(ms.mountFile.Fd()), [][]byte{header, req.flatData})
 	if req.readResult != nil {
 		req.readResult.Done()
 	}

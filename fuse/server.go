@@ -29,7 +29,7 @@ type Server struct {
 	writeMu sync.Mutex
 
 	// I/O with kernel and daemon.
-	mountFd int
+	mountFile *os.File
 
 	// Dump debug info onto stdout.
 	debug bool
@@ -173,14 +173,14 @@ func NewServer(fs RawFileSystem, mountPoint string, opts *MountOptions) (*Server
 		}
 		mountPoint = filepath.Clean(filepath.Join(cwd, mountPoint))
 	}
-	fd, err := mount(mountPoint, strings.Join(optStrs, ","))
+	file, err := mountGo(mountPoint, strings.Join(optStrs, ","))
 	if err != nil {
 		return nil, err
 	}
 
 	ms.fileSystem.Init(ms)
 	ms.mountPoint = mountPoint
-	ms.mountFd = fd
+	ms.mountFile = file
 	return ms, nil
 }
 
@@ -234,7 +234,7 @@ func (ms *Server) readRequest(exitIdle bool) (req *request, code Status) {
 	var n int
 	err := handleEINTR(func() error {
 		var err error
-		n, err = syscall.Read(ms.mountFd, dest)
+		n, err = syscall.Read(int(ms.mountFile.Fd()), dest)
 		return err
 	})
 	if err != nil {
@@ -306,7 +306,7 @@ func (ms *Server) Serve() {
 	ms.loops.Wait()
 
 	ms.writeMu.Lock()
-	syscall.Close(ms.mountFd)
+	ms.mountFile.Close()
 	ms.writeMu.Unlock()
 }
 
