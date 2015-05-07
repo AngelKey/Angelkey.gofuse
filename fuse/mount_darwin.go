@@ -103,6 +103,7 @@ import "C"
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"syscall"
 	"unsafe"
@@ -116,6 +117,34 @@ func getvfsbyname(name string, vfc *C.struct_vfsconf) error {
 		return err
 	}
 	return nil
+}
+
+const (
+	vfsName           = "osxfusefs"
+	loadOsxfusefsPath = "/Library/Filesystems/osxfusefs.fs/Support/load_osxfusefs"
+)
+
+func mountGo(dir string, options string) (int, error) {
+	var vfc C.struct_vfsconf
+	err := getvfsbyname(vfsName, &vfc)
+	if err != nil {
+		if _, err := os.Stat(loadOsxfusefsPath); os.IsNotExist(err) {
+			return -1, fmt.Errorf("cannot find load_osfusefs")
+		}
+
+		cmd := exec.Command(loadOsxfusefsPath)
+		if err := cmd.Run(); err != nil {
+			return -1, fmt.Errorf("%s: %s", loadOsxfusefsPath, err)
+		}
+
+		if err := getvfsbyname(vfsName, &vfc); err != nil {
+			return -1, fmt.Errorf("getvfsbyname(%s): %s", vfsName, err)
+		}
+	}
+
+	// TODO: Port the rest.
+
+	return -1, fmt.Errorf("Not implemented")
 }
 
 func mount(dir string, options string) (int, error) {
