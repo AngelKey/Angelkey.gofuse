@@ -126,8 +126,7 @@ const (
 
 func mountGo(dir string, options string) (int, error) {
 	var vfc C.struct_vfsconf
-	err := getvfsbyname(vfsName, &vfc)
-	if err != nil {
+	if err := getvfsbyname(vfsName, &vfc); err != nil {
 		if _, err := os.Stat(loadOsxfusefsPath); os.IsNotExist(err) {
 			return -1, fmt.Errorf("cannot find load_osfusefs")
 		}
@@ -142,7 +141,25 @@ func mountGo(dir string, options string) (int, error) {
 		}
 	}
 
+	// Look for available FUSE device.
+	fd := -1
+	for i := 0; ; i++ {
+		devPath := fmt.Sprintf("/dev/osxfuse%d", i)
+		if _, err := os.Stat(devPath); os.IsNotExist(err) {
+			return -1, fmt.Errorf("no available fuse devices")
+		}
+
+		var err error
+		if fd, err = syscall.Open(devPath, syscall.O_RDWR, 0); err == nil {
+			break
+		}
+	}
+
 	// TODO: Port the rest.
+
+	if err := syscall.Close(fd); err != nil {
+		return -1, err
+	}
 
 	return -1, fmt.Errorf("Not implemented")
 }
