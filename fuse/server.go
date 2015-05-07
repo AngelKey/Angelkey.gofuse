@@ -339,16 +339,23 @@ exit:
 	}
 }
 
-func (ms *Server) handleRequest(req *request) {
-	req.parse()
+func (ms *Server) checkStarted(opcode int32) {
 	// TODO: Figure out whether this is OS X-specific behavior.
-	if req.inHeader.Opcode == _OP_ACCESS {
+	if opcode == _OP_ACCESS {
 		ms.startedMu.Lock()
 		defer ms.startedMu.Unlock()
 		if ms.started != nil {
 			close(ms.started)
 			ms.started = nil
 		}
+	}
+}
+
+func (ms *Server) handleRequest(req *request) {
+	req.parse()
+
+	if req.inHeader != nil {
+		ms.checkStarted(req.inHeader.Opcode)
 	}
 
 	if req.handler == nil {
