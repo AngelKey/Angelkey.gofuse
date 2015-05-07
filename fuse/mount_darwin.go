@@ -108,6 +108,16 @@ import (
 	"unsafe"
 )
 
+func getvfsbyname(name string, vfc *C.struct_vfsconf) error {
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+	status, err := C.getvfsbyname(cname, vfc)
+	if status != 0 {
+		return err
+	}
+	return nil
+}
+
 func mount(dir string, options string) (int, error) {
 	errp := (**C.char)(C.malloc(16))
 	*errp = nil
