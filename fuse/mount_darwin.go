@@ -2,67 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO: Rewrite using package syscall not cgo
-
 package fuse
 
 /*
-
-// Adapted from Plan 9 from User Space's src/cmd/9pfuse/fuse.c,
-// which carries this notice:
-//
-// The files in this directory are subject to the following license.
-//
-// The author of this software is Russ Cox.
-//
-//         Copyright (c) 2006 Russ Cox
-//
-// Permission to use, copy, modify, and distribute this software for any
-// purpose without fee is hereby granted, provided that this entire notice
-// is included in all copies of any software which is or includes a copy
-// or modification of this software and in all copies of the supporting
-// documentation for such software.
-//
-// THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
-// WARRANTY.  IN PARTICULAR, THE AUTHOR MAKES NO REPRESENTATION OR WARRANTY
-// OF ANY KIND CONCERNING THE MERCHANTABILITY OF THIS SOFTWARE OR ITS
-// FITNESS FOR ANY PARTICULAR PURPOSE.
-
 #include <stdlib.h>
 #include <sys/param.h>
 #include <sys/mount.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
-#include <fcntl.h>
-
-#define nil ((void*)0)
-
-static int
-mountfuse(int fd, char *mtpt, char **err)
-{
-	int pid;
-	char buf[200];
-
-	pid = fork();
-	if(pid < 0)
-		return -1;
-	if(pid == 0){
-		snprintf(buf, sizeof buf, "%d", fd);
-		setenv("MOUNT_FUSEFS_CALL_BY_LIB", "", 1);
-		// Different versions of MacFUSE put the
-		// mount_fusefs binary in different places.
-		// Try all.
-		// Leopard location
-		setenv("MOUNT_FUSEFS_DAEMON_PATH", "/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs", 1);
-		execl("/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs", "mount_osxfusefs", "-o", "iosize=4096", buf, mtpt, nil);
-		fprintf(stderr, "exec mount_osxfusefs: %s\n", strerror(errno));
-		_exit(1);
-	}
-	return fd;
-}
-
 */
 import "C"
 import (
@@ -116,56 +61,26 @@ func mountGo(dir string, options string) (*os.File, error) {
 			return nil, fmt.Errorf("no available fuse devices %d", i)
 		}
 
-		var fd int
 		var err error
-		fd, err = syscall.Open(devPath, syscall.O_RDWR, 0)
+		file, err = os.OpenFile(devPath, syscall.O_RDWR, 0)
 		if err == nil {
-			file = os.NewFile(uintptr(fd), devPath)
 			break
 		}
 	}
 
-	errp := (**C.char)(C.malloc(16))
-	*errp = nil
-	defer C.free(unsafe.Pointer(errp))
-	cdir := C.CString(dir)
-	defer C.free(unsafe.Pointer(cdir))
-	C.mountfuse(C.int(file.Fd()), cdir, errp)
-
-	/*
-		cmd := exec.Cmd{
-			Path:       mountOsxfusefsPath,
-			Args:       []string{"mount_osxfusefs", "-o", "debug", "-o", "iosize=4096", "3", dir},
-			Env:        []string{"MOUNT_FUSEFS_CALL_BY_LIB=", "MOUNT_FUSEFS_DAEMON_PATH=" + mountOsxfusefsPath},
-			Stdout:     os.Stdout,
-			Stderr:     os.Stderr,
-			ExtraFiles: []*os.File{file},
-		}
-		if err := cmd.Run(); err != nil {
-			return nil, fmt.Errorf("%s: %s", mountOsxfusefsPath, err)
-		}*/
+	cmd := exec.Cmd{
+		Path:       mountOsxfusefsPath,
+		Args:       []string{"mount_osxfusefs", "-o", "debug", "-o", "iosize=4096", "3", dir},
+		Env:        append(os.Environ(), "MOUNT_FUSEFS_CALL_BY_LIB=", "MOUNT_FUSEFS_DAEMON_PATH="+mountOsxfusefsPath),
+		Stdout:     os.Stdout,
+		Stderr:     os.Stderr,
+		ExtraFiles: []*os.File{file},
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("%s: %s", mountOsxfusefsPath, err)
+	}
 
 	return file, nil
-}
-
-/*
-func mount(dir string, options string) (int, error) {
-	errp := (**C.char)(C.malloc(16))
-	*errp = nil
-	defer C.free(unsafe.Pointer(errp))
-	cdir := C.CString(dir)
-	defer C.free(unsafe.Pointer(cdir))
-	fd := C.mountfuse(cdir, errp)
-	if *errp != nil {
-		return -1, mountError(C.GoString(*errp))
-	}
-	return int(fd), nil
-}*/
-
-type mountError string
-
-func (m mountError) Error() string {
-	return string(m)
 }
 
 func unmount(mountPoint string) error {
