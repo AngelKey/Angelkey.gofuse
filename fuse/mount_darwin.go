@@ -158,10 +158,9 @@ func mountGo(dir string, options string) (*os.File, error) {
 	}
 
 	cmd := exec.Cmd{
-		Path: mountOsxfusefsPath,
-		Args: []string{"-o", "iosize=4096", "3", dir},
-		Env:  []string{"MOUNT_FUSEFS_CALL_BY_LIB=", "MOUNT_FUSEFS_DAEMON_PATH=/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs"},
-		// Takes ownership of fd.
+		Path:       mountOsxfusefsPath,
+		Args:       []string{"-o", "iosize=4096", "3", dir},
+		Env:        []string{"MOUNT_FUSEFS_CALL_BY_LIB=", "MOUNT_FUSEFS_DAEMON_PATH=/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs"},
 		ExtraFiles: []*os.File{file},
 	}
 	if err := cmd.Run(); err != nil {
